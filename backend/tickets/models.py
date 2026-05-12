@@ -13,6 +13,7 @@ class Ticket(models.Model):
         OPEN = 'open', 'باز'
         PENDING = 'pending', 'در انتظار'
         CLOSED = 'closed', 'بسته'
+        REVISION = 'revision', 'نیاز به اصلاح'   # اضافه شود
 
     class Priority(models.TextChoices):
         LOW = 'low', 'پایین'

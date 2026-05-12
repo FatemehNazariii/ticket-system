@@ -4,18 +4,20 @@ from rest_framework.response import Response
 from django.db.models import Q
 from .models import Ticket, Message, Category
 from .serializers import TicketSerializer, MessageSerializer, CategorySerializer
+from rest_framework import permissions
 
 class IsAgentOrAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_staff  # یا request.user.is_superuser
+        # به جای role، از is_staff استفاده می‌کنیم
+        return request.user.is_staff
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
 
     def get_permissions(self):
-        if self.action in ['create', 'update', 'destroy']:
-            return [IsAgentOrAdmin()]
+        if self.action in ['update', 'partial_update', 'destroy', 'change_status']:
+            return [IsAgentOrAdmin()]   # IsAgentOrAdmin اکنون بر اساس is_staff است
         return [permissions.IsAuthenticated()]
 
 class TicketViewSet(viewsets.ModelViewSet):
@@ -23,15 +25,13 @@ class TicketViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        if not user.is_staff:
+            return Ticket.objects.filter(user=user)
         qs = Ticket.objects.all()
-        # کاربر عادی فقط تیکت‌های خودش رو می‌بینه
-        if user.role == 'user':
-            qs = qs.filter(user=user)
-        # جستجو
+        # جستجو و فیلتر وضعیت (اختیاری)
         search = self.request.query_params.get('search')
         if search:
             qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
-        # فیلتر وضعیت
         status_f = self.request.query_params.get('status')
         if status_f:
             qs = qs.filter(status=status_f)
@@ -55,7 +55,7 @@ class TicketViewSet(viewsets.ModelViewSet):
         # تغییر وضعیت تیکت
         ticket = self.get_object()
         new_status = request.data.get('status')
-        if new_status not in ['open', 'pending', 'closed']:
+        if new_status not in ['open', 'pending', 'closed', 'revision']:
             return Response({'error': 'وضعیت نامعتبر'}, status=400)
         ticket.status = new_status
         ticket.save()
