@@ -19,7 +19,8 @@ export default function NewTicketPage() {
     const fetchCategories = async () => {
       try {
         const res = await api.get('/categories/');
-        setCategories(res.data);
+        const categoriesData = Array.isArray(res.data) ? res.data : (res.data.results || []);
+        setCategories(categoriesData);
       } catch (err) {
         console.error('خطا در دریافت دسته‌بندی‌ها:', err);
       }

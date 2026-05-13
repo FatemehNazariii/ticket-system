@@ -23,6 +23,27 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class TicketViewSet(viewsets.ModelViewSet):
     serializer_class = TicketSerializer
 
+    @action(detail=True, methods=['patch'], url_path='messages/(?P<message_id>[^/.]+)')
+    def edit_message(self, request, pk=None, message_id=None):
+        ticket = self.get_object()
+        try:
+            message = ticket.messages.get(id=message_id)
+        except Message.DoesNotExist:
+            return Response({'error': 'پیام یافت نشد'}, status=status.HTTP_404_NOT_FOUND)
+
+        # فقط اجازه ویرایش به staff (ادمین/اپراتور) داده شود
+        if not request.user.is_staff:
+            return Response({'error': 'شما مجوز ویرایش این پیام را ندارید'}, status=status.HTTP_403_FORBIDDEN)
+
+        # فقط فیلد content قابلیت ویرایش دارد
+        new_content = request.data.get('content')
+        if new_content:
+            message.content = new_content
+            message.save()
+            serializer = MessageSerializer(message)
+            return Response(serializer.data)
+        return Response({'error': 'متن پیام ارسال نشده است'}, status=status.HTTP_400_BAD_REQUEST)
+
     def get_queryset(self):
         user = self.request.user
         if not user.is_staff:

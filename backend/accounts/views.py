@@ -43,6 +43,7 @@ class UserProfileView(APIView):
             'id': user.id,
             'username': user.username,
             'email': user.email,
+             'is_staff': user.is_staff,
             'role': user.role,  # باید در مدل User فیلد role وجود داشته باشد
             'phone': getattr(user, 'phone', ''),
         })

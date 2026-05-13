@@ -7,24 +7,28 @@ export default function TicketsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const fetchTickets = async () => {
-    setLoading(true);
-    try {
-      const params = statusFilter ? { status: statusFilter } : {};
-      const response = await api.get('/tickets/', { params });
-      setTickets(response.data);
-    } catch (err) {
-      setError('خطا در دریافت تیکت‌ها');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+const fetchTickets = async () => {
+  setLoading(true);
+  try {
+    const params = {
+      page: page,
+      ...(statusFilter && { status: statusFilter })
+    };
+    const response = await api.get('/tickets/', { params });
+    setTickets(response.data.results);
+    setTotalPages(Math.ceil(response.data.count / 10)); // PAGE_SIZE=10
+  } catch (err) {
+    setError('خطا در دریافت تیکت‌ها');
+  } finally {
+    setLoading(false);
+  }
+};
   useEffect(() => {
     fetchTickets();
-  }, [statusFilter]);
+  }, [statusFilter, page]);
 
   const getStatusText = (status) => {
     switch (status) {
@@ -44,6 +48,7 @@ export default function TicketsPage() {
       default: return priority;
     }
   };
+
 
   if (loading) return <div style={{ textAlign: 'center', marginTop: '2rem' }}>در حال بارگذاری...</div>;
   if (error) return <div style={{ color: 'red', textAlign: 'center' }}>{error}</div>;
@@ -99,6 +104,16 @@ export default function TicketsPage() {
           </tbody>
         </table>
       )}
+
+      <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+  <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1}>
+    قبلی
+  </button>
+  <span>صفحه {page} از {totalPages}</span>
+  <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages}>
+    بعدی
+  </button>
+</div>
     </div>
   );
 }

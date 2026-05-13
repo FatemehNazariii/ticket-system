@@ -7,21 +7,26 @@ export default function UserListPage() {
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newUser, setNewUser] = useState({ username: '', email: '', phone: '', password: '', password2: '', role: 'user' });
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1); 
 
   const fetchUsers = async () => {
+    setLoading(true);
     try {
-      const res = await api.get('/auth/users/');
-      setUsers(res.data);
+        const res = await api.get('/auth/users/', { params: { page } });
+        setUsers(res.data.results);
+        const total = Math.ceil(res.data.count / 10); // PAGE_SIZE=10
+        setTotalPages(total);
     } catch (err) {
-      console.error(err);
+        console.error(err);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+    };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+useEffect(() => {
+  fetchUsers();
+}, [page]);
 
   const handleDelete = async (id) => {
     if (window.confirm('آیا از حذف این کاربر مطمئن هستید؟')) {
@@ -123,6 +128,15 @@ export default function UserListPage() {
           </form>
         </div>
       )}
+      <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+  <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1}>
+    قبلی
+  </button>
+  <span>صفحه {page} از {totalPages}</span>
+  <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages}>
+    بعدی
+  </button>
+</div>
     </div>
   );
 }

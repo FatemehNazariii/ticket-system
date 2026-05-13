@@ -15,7 +15,9 @@ export default function Header() {
     agent: 'اپراتور',
     admin: 'مدیر',
   };
-
+  {user?.is_staff && (
+    <Link to="/admin/users">مدیریت کاربران</Link>
+  )}
   return (
     <header style={{
       background: '#3B6D11',
