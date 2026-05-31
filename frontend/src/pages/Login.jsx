@@ -1,52 +1,116 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const [form, setForm] = useState({ username: '', password: '' });
+  const navigate = useNavigate();
+  const { refetchUser } = useAuth();
+
+  const [form, setForm] = useState({
+    username: '',
+    password: '',
+  });
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const { refetchUser } = useAuth();   // اضافه شد
+
+  const handleChange = (e) => {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
     try {
-      // تغییر آدرس به '/auth/login/' (هماهنگ با بک‌اند)
-      const res = await api.post('/auth/login/', { username: form.username, password: form.password });
+      const res = await api.post('/auth/login/', {
+        username: form.username,
+        password: form.password,
+      });
+
       localStorage.setItem('access', res.data.access);
       localStorage.setItem('refresh', res.data.refresh);
-      await refetchUser();   // به‌روزرسانی اطلاعات کاربر (نقش و ...)
+
+      await refetchUser();
       navigate('/tickets');
     } catch (err) {
-      console.error(err);
-      setError('نام کاربری یا رمز عبور اشتباه است');
+      console.log('LOGIN ERROR:', err.response?.data);
+
+      const data = err.response?.data;
+      let msg = 'نام کاربری یا رمز عبور اشتباه است.';
+
+      if (data) {
+        if (data.detail) msg = data.detail;
+        else if (data.non_field_errors) msg = data.non_field_errors[0];
+        else if (data.username) msg = data.username[0];
+        else if (data.password) msg = data.password[0];
+      }
+
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f5f5f5'}}>
-      <div style={{background:'white',padding:'2rem',borderRadius:'12px',width:'360px',boxShadow:'0 2px 16px #0001'}}>
-        <h2 style={{textAlign:'center',marginBottom:'1.5rem',direction:'rtl'}}>ورود به سیستم</h2>
-        {error && <div style={{background:'#fee',color:'#c00',padding:'8px',borderRadius:'6px',marginBottom:'1rem',direction:'rtl'}}>{error}</div>}
-        <div style={{display:'flex',flexDirection:'column',gap:'1rem',direction:'rtl'}}>
-          <input placeholder="نام کاربری" value={form.username}
-            onChange={e => setForm({...form, username: e.target.value})}
-            style={{padding:'10px',borderRadius:'6px',border:'1px solid #ddd',fontSize:'14px',direction:'rtl'}} />
-          <input type="password" placeholder="رمز عبور" value={form.password}
-            onChange={e => setForm({...form, password: e.target.value})}
-            style={{padding:'10px',borderRadius:'6px',border:'1px solid #ddd',fontSize:'14px',direction:'rtl'}} />
-          <button onClick={handleSubmit} disabled={loading}
-            style={{padding:'10px',background:'#3B6D11',color:'white',border:'none',borderRadius:'6px',fontSize:'14px',cursor:'pointer'}}>
-            {loading ? 'در حال ورود...' : 'ورود'}
-          </button>
+    <main className="auth-page">
+      <section className="auth-card">
+        <div className="auth-header">
+          <div className="auth-logo">T</div>
+
+          <h1 className="auth-title">ورود به سامانه</h1>
+
+          <p className="auth-subtitle">
+            برای مشاهده و مدیریت تیکت‌های پشتیبانی وارد حساب کاربری خود شوید.
+          </p>
         </div>
-      </div>
-    </div>
+
+        {error && <div className="alert alert-error">{error}</div>}
+
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>نام کاربری</label>
+            <input
+              className="form-control"
+              name="username"
+              value={form.username}
+              onChange={handleChange}
+              placeholder="نام کاربری خود را وارد کنید"
+              required
+              autoComplete="username"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>رمز عبور</label>
+            <input
+              className="form-control"
+              name="password"
+              type="password"
+              value={form.password}
+              onChange={handleChange}
+              placeholder="رمز عبور خود را وارد کنید"
+              required
+              autoComplete="current-password"
+            />
+          </div>
+
+          <div className="auth-actions">
+            <button className="btn btn-primary" type="submit" disabled={loading}>
+              {loading ? 'در حال ورود...' : 'ورود'}
+            </button>
+          </div>
+        </form>
+
+        <div className="auth-footer">
+          حساب کاربری ندارید؟ <Link to="/signup">ثبت‌نام کنید</Link>
+        </div>
+      </section>
+    </main>
   );
 }
