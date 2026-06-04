@@ -4,14 +4,17 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import socket from '../socket';
 
-export default function Header() {
-  const { user, logout } = useAuth();
+export default function Header({ onMenuClick }) {
+    const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAdminMenu, setShowAdminMenu] = useState(false);
+  const [darkMode, setDarkMode] = useState(
+  localStorage.getItem('theme') === 'dark'
+);
 
 const fetchUnreadNotifications = async () => {
   try {
@@ -53,6 +56,18 @@ const fetchUnreadNotifications = async () => {
     fontWeight: 800,
     transition: '0.2s ease',
   });
+
+  useEffect(() => {
+  document.documentElement.setAttribute(
+    'data-theme',
+    darkMode ? 'dark' : 'light'
+  );
+
+  localStorage.setItem(
+    'theme',
+    darkMode ? 'dark' : 'light'
+  );
+}, [darkMode]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -133,18 +148,25 @@ const fetchUnreadNotifications = async () => {
         boxShadow: '0 6px 20px rgba(15, 23, 42, 0.05)',
       }}
     >
-      <div
-        style={{
-          width: 'min(1200px, calc(100% - 32px))',
-          margin: '0 auto',
-          minHeight: '72px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '1rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+<div
+  style={{
+    width: '100%',
+    padding: '0 24px',
+    minHeight: '72px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '1rem',
+  }}
+>
+<div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <button
+    className="btn btn-outline mobile-menu-btn"
+    onClick={onMenuClick}
+    type="button"
+  >
+    ☰
+  </button>
           <Link
             to="/tickets"
             style={{
@@ -180,116 +202,6 @@ const fetchUnreadNotifications = async () => {
               </div>
             </div>
           </Link>
-
-          <nav style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-            {user ? (
-              <>
-                <NavLink to="/tickets" style={navLinkStyle}>
-                  تیکت‌ها
-                </NavLink>
-
-                <NavLink to="/tickets/new" style={navLinkStyle}>
-                  تیکت جدید
-                </NavLink>
-
-                <NavLink to="/profile" style={navLinkStyle}>
-                  پروفایل
-                </NavLink>
-                {(user?.role === 'agent' || user?.role === 'admin' || user?.is_staff) && (
-  <NavLink to="/agent/dashboard" style={navLinkStyle}>
-    پنل کارشناس
-  </NavLink>
-)}
-
-               {user?.is_superuser && (
-  <div style={{ position: 'relative' }}>
-    <button
-      type="button"
-      className="btn btn-outline"
-      onClick={() => setShowAdminMenu((prev) => !prev)}
-    >
-      مدیریت ▼
-    </button>
-
-    {showAdminMenu && (
-      <div
-        style={{
-          position: 'absolute',
-          top: '110%',
-          right: 0,
-          minWidth: '220px',
-          background: '#fff',
-          border: '1px solid #e5e7eb',
-          borderRadius: '12px',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
-          overflow: 'hidden',
-          zIndex: 999,
-        }}
-      >
-        <NavLink
-          to="/admin/dashboard"
-          style={{
-            display: 'block',
-            padding: '12px 16px',
-            textDecoration: 'none',
-            color: '#334155',
-          }}
-        >
-          📊 داشبورد
-        </NavLink>
-
-        <NavLink
-          to="/admin/tickets"
-          style={{
-            display: 'block',
-            padding: '12px 16px',
-            textDecoration: 'none',
-            color: '#334155',
-          }}
-        >
-          🎫 مدیریت تیکت‌ها
-        </NavLink>
-
-        <NavLink
-          to="/admin/users"
-          style={{
-            display: 'block',
-            padding: '12px 16px',
-            textDecoration: 'none',
-            color: '#334155',
-          }}
-        >
-          👥 کاربران
-        </NavLink>
-
-        <NavLink
-          to="/admin/categories"
-          style={{
-            display: 'block',
-            padding: '12px 16px',
-            textDecoration: 'none',
-            color: '#334155',
-          }}
-        >
-          📂 دسته‌بندی‌ها
-        </NavLink>
-      </div>
-    )}
-  </div>
-)}
-              </>
-            ) : (
-              <>
-                <NavLink to="/login" style={navLinkStyle}>
-                  ورود
-                </NavLink>
-
-                <NavLink to="/signup" style={navLinkStyle}>
-                  ثبت‌نام
-                </NavLink>
-              </>
-            )}
-          </nav>
         </div>
 
         {user && (
@@ -387,6 +299,13 @@ const fetchUnreadNotifications = async () => {
             <button className="btn btn-outline" onClick={logout}>
               خروج
             </button>
+            <button
+              className="btn btn-outline"
+              onClick={() => setDarkMode(!darkMode)}
+            >
+              {darkMode ? '☀️' : '🌙'}
+            </button>
+            
           </div>
         )}
       </div>
