@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 export default function KnowledgeListPage() {
   const [articles, setArticles] = useState([]);
@@ -17,6 +18,8 @@ export default function KnowledgeListPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const { user } = useAuth();
+  const isSuperAdmin = user?.is_superuser === true;
 
   const fetchArticles = async () => {
     setLoading(true);
@@ -148,6 +151,24 @@ export default function KnowledgeListPage() {
       setError('خطا در حذف مقاله');
     }
   };
+
+const handleApprove = async (id) => {
+  try {
+    await api.patch(`/knowledge/${id}/`, {
+      is_published: true,
+    });
+
+    showSuccess('مقاله با موفقیت تایید و منتشر شد.');
+    fetchArticles();
+  } catch (err) {
+    console.log('KNOWLEDGE APPROVE ERROR:', err.response?.data);
+    setError(
+      err.response?.data?.detail ||
+      err.response?.data?.is_published?.[0] ||
+      'خطا در تایید مقاله'
+    );
+  }
+};
 
   if (loading) {
     return <div className="loading">در حال دریافت مقاله‌ها...</div>;
@@ -343,7 +364,14 @@ export default function KnowledgeListPage() {
                         <button className="btn btn-outline" onClick={() => handleEdit(article)}>
                           ویرایش
                         </button>
-
+                        {isSuperAdmin && !article.is_published && (
+                        <button
+                            className="btn btn-primary"
+                            onClick={() => handleApprove(article.id)}
+                        >
+                            تایید انتشار
+                        </button>
+                        )}
                         <button
                           className="btn btn-danger"
                           onClick={() => handleDelete(article.id)}

@@ -7,15 +7,8 @@ import {
   Cell,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Legend,
+  Label,
 } from 'recharts';
-
-
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -40,11 +33,16 @@ export default function DashboardPage() {
       setStats(statsRes.data);
 
       const ticketsRes = await api.get('/tickets/');
-      const tickets = ticketsRes.data.results || ticketsRes.data;
+      const tickets = Array.isArray(ticketsRes.data)
+        ? ticketsRes.data
+        : ticketsRes.data.results || [];
       setRecentTickets(tickets.slice(0, 5));
 
       const agentStatsRes = await api.get('/tickets/agent-stats/');
-      setAgentStats(agentStatsRes.data);
+      const agents = Array.isArray(agentStatsRes.data)
+        ? agentStatsRes.data
+        : agentStatsRes.data.results || [];
+      setAgentStats(agents);
     } catch (err) {
       console.log('DASHBOARD ERROR:', err.response?.data);
       setError('خطا در دریافت اطلاعات داشبورد');
@@ -136,26 +134,39 @@ export default function DashboardPage() {
   ];
 
   const statusChartData = [
-  { name: 'باز', value: stats.open },
-  { name: 'در انتظار', value: stats.pending },
-  { name: 'بسته', value: stats.closed },
-  { name: 'نیاز به اصلاح', value: stats.revision },
-];
+    { name: 'باز', value: stats.open, color: '#22c55e' },
+    { name: 'در انتظار', value: stats.pending, color: '#f59e0b' },
+    { name: 'بسته', value: stats.closed, color: '#ef4444' },
+    { name: 'نیاز به اصلاح', value: stats.revision, color: '#8b5cf6' },
+  ].filter((item) => item.value > 0);
 
-const COLORS = [
-  '#16a34a',
-  '#d97706',
-  '#dc2626',
-  '#7c3aed',
-];
+  const totalStatus = statusChartData.reduce((sum, item) => sum + item.value, 0);
 
-const agentChartData = agentStats.map((agent) => ({
-  name: agent.username,
-  total: agent.assigned_tickets_count,
-  open: agent.open_tickets_count,
-  pending: agent.pending_tickets_count,
-  closed: agent.closed_tickets_count,
-}));
+  const tooltipStyle = {
+    borderRadius: '14px',
+    border: '1px solid var(--border)',
+    background: 'var(--card)',
+    color: 'var(--text)',
+    boxShadow: '0 12px 30px rgba(15, 23, 42, 0.18)',
+    direction: 'rtl',
+  };
+
+  const getAgentProgress = (agent) => {
+    const total = agent.assigned_tickets_count || 0;
+    const closed = agent.closed_tickets_count || 0;
+
+    if (!total) return 0;
+
+    return Math.round((closed / total) * 100);
+  };
+
+  const topAgents = [...agentStats]
+    .sort(
+      (a, b) =>
+        (b.closed_tickets_count || 0) -
+        (a.closed_tickets_count || 0)
+    )
+    .slice(0, 3);
 
   if (loading) {
     return <div className="loading">در حال دریافت اطلاعات داشبورد...</div>;
@@ -166,7 +177,7 @@ const agentChartData = agentStats.map((agent) => ({
       <div className="toolbar">
         <div>
           <h1 className="page-title">داشبورد مدیریت</h1>
-          <p style={{ margin: 0, color: '#64748b', fontWeight: 500 }}>
+          <p style={{ margin: 0, color: 'var(--muted)', fontWeight: 500 }}>
             نمای کلی وضعیت تیکت‌ها و فعالیت‌های اخیر سامانه.
           </p>
         </div>
@@ -190,10 +201,7 @@ const agentChartData = agentStats.map((agent) => ({
           <Link
             key={card.title}
             to={card.to}
-            style={{
-              textDecoration: 'none',
-              color: 'inherit',
-            }}
+            style={{ textDecoration: 'none', color: 'inherit' }}
           >
             <div
               className="card dashboard-card"
@@ -220,7 +228,7 @@ const agentChartData = agentStats.map((agent) => ({
                 {card.icon}
               </div>
 
-              <h3 style={{ margin: 0, color: '#334155', fontSize: '1rem' }}>
+              <h3 style={{ margin: 0, color: 'var(--text)', fontSize: '1rem' }}>
                 {card.title}
               </h3>
 
@@ -229,13 +237,13 @@ const agentChartData = agentStats.map((agent) => ({
                   margin: '0.35rem 0',
                   fontSize: '2.2rem',
                   fontWeight: 900,
-                  color: '#111827',
+                  color: 'var(--text)',
                 }}
               >
                 {card.value}
               </p>
 
-              <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>
+              <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.9rem' }}>
                 {card.hint}
               </p>
 
@@ -248,74 +256,222 @@ const agentChartData = agentStats.map((agent) => ({
                   height: '90px',
                   borderRadius: '50%',
                   background: card.bg,
-                  opacity: 0.45,
+                  opacity: 0.35,
                 }}
               />
             </div>
           </Link>
         ))}
       </div>
+
+      <div className="dashboard-smart-grid">
+       <section className="card chart-card">
+  <div className="chart-header">
+    <div>
+      <h2>📊 وضعیت تیکت‌ها</h2>
+      <p>نمای خلاصه از وضعیت فعلی تیکت‌ها.</p>
+    </div>
+
+    <span className="chart-total-badge">
+      {stats.total} تیکت
+    </span>
+  </div>
+
+  {statusChartData.length === 0 ? (
+    <div className="empty-state">هنوز داده‌ای برای نمایش نمودار وجود ندارد.</div>
+  ) : (
+    <>
       <div
-  style={{
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1rem',
-    marginBottom: '1.25rem',
-  }}
->
-  <section className="card">
-    <h2 style={{ marginTop: 0 }}>
-      وضعیت تیکت‌ها
-    </h2>
+        className="donut-wrap"
+        style={{
+          filter: 'drop-shadow(0 14px 28px rgba(37, 99, 235, 0.14))',
+        }}
+      >
+        <ResponsiveContainer width="100%" height={190}>
+          <PieChart>
+            <Pie
+              data={statusChartData}
+              dataKey="value"
+              nameKey="name"
+              innerRadius={42}
+              outerRadius={78}
+              paddingAngle={6}
+              cornerRadius={12}
+              startAngle={90}
+              endAngle={-270}
+              stroke="var(--card)"
+              strokeWidth={5}
+              isAnimationActive={true}
+              animationDuration={1200}
+            >
+              {statusChartData.map((entry) => (
+                <Cell key={entry.name} fill={entry.color} />
+              ))}
 
-    <ResponsiveContainer width="100%" height={320}>
-      <PieChart>
-        <Pie
-          data={statusChartData}
-          dataKey="value"
-          nameKey="name"
-          outerRadius={110}
-          label
+              <Label
+                content={({ viewBox }) => {
+                  const { cx, cy } = viewBox;
+
+                  return (
+                    <g>
+                      <text
+                        x={cx}
+                        y={cy - 6}
+                        textAnchor="middle"
+                        fontSize="34"
+                        fontWeight="900"
+                        fill="var(--text)"
+                      >
+                        {stats.total}
+                      </text>
+
+                      <text
+                        x={cx}
+                        y={cy + 22}
+                        textAnchor="middle"
+                        fontSize="13"
+                        fontWeight="700"
+                        fill="#94a3b8"
+                      >
+                        کل تیکت‌ها
+                      </text>
+                    </g>
+                  );
+                }}
+              />
+            </Pie>
+
+            <Tooltip contentStyle={tooltipStyle} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+          gap: '0.75rem',
+          marginTop: '1rem',
+        }}
+      >
+        {statusChartData.map((item) => (
+          <div
+            key={item.name}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.75rem',
+              padding: '0.75rem 0.9rem',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              background: 'var(--bg)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span
+                style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  background: item.color,
+                }}
+              />
+              <span style={{ color: 'var(--muted)', fontWeight: 700 }}>
+                {item.name}
+              </span>
+            </div>
+
+            <strong style={{ color: 'var(--text)' }}>
+              {item.value}
+            </strong>
+          </div>
+        ))}
+      </div>
+    </>
+  )}
+</section>
+
+        <section className="card chart-card">
+          <div className="chart-header">
+            <div>
+              <h2>🏆 کارشناسان برتر</h2>
+              <p>نمایش سه کارشناس برتر بر اساس تعداد تیکت‌های بسته‌شده.</p>
+            </div>
+
+            <span className="chart-total-badge">Top 3</span>
+          </div>
+
+          {topAgents.length === 0 ? (
+            <div className="empty-state">هنوز کارشناسی برای نمایش وجود ندارد.</div>
+          ) : (
+            <>
+             <div style={{ display: 'grid', gap: '0.75rem' }}>
+  {topAgents.map((agent, index) => {
+    const progress = getAgentProgress(agent);
+    const rankIcon =
+      index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
+
+    return (
+      <div
+        key={agent.id}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr auto',
+          gap: '0.75rem',
+          alignItems: 'center',
+          padding: '0.65rem 0.85rem',
+          border: '1px solid var(--border)',
+          borderRadius: '16px',
+          background: 'var(--bg)',
+        }}
+      >
+        <div>
+          <strong>
+            {rankIcon} {agent.username}
+          </strong>
+          <div style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
+            {agent.assigned_tickets_count || 0} تیکت •{' '}
+            {agent.closed_tickets_count || 0} بسته • عملکرد {progress}٪
+          </div>
+        </div>
+
+        <div
+          style={{
+minWidth: '44px',
+height: '44px',
+            borderRadius: '16px',
+            background: '#eef2ff',
+            color: '#2563eb',
+            display: 'grid',
+            placeItems: 'center',
+            fontWeight: 900,
+          }}
         >
-          {statusChartData.map((entry, index) => (
-            <Cell
-              key={index}
-              fill={COLORS[index % COLORS.length]}
-            />
-          ))}
-        </Pie>
-
-        <Tooltip />
-      </PieChart>
-    </ResponsiveContainer>
-  </section>
-
-  <section className="card">
-    <h2 style={{ marginTop: 0 }}>
-      عملکرد کارشناسان
-    </h2>
-
-    <ResponsiveContainer width="100%" height={320}>
-      <BarChart data={agentChartData}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="name" />
-        <YAxis />
-        <Tooltip />
-        <Legend />
-
-        <Bar dataKey="open" fill="#16a34a" />
-        <Bar dataKey="pending" fill="#d97706" />
-        <Bar dataKey="closed" fill="#dc2626" />
-      </BarChart>
-    </ResponsiveContainer>
-  </section>
+          {progress}%
+        </div>
+      </div>
+    );
+  })}
 </div>
+
+              <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+                <Link to="/agents-performance" style={{ textDecoration: 'none' }}>
+                  <button className="btn btn-outline">
+                    مشاهده همه کارشناسان
+                  </button>
+                </Link>
+              </div>
+            </>
+          )}
+        </section>
+      </div>
 
       <section className="card">
         <div className="toolbar" style={{ marginBottom: '1rem' }}>
           <div>
             <h2 style={{ margin: 0 }}>آخرین تیکت‌ها</h2>
-            <p style={{ margin: '0.35rem 0 0', color: '#64748b' }}>
+            <p style={{ margin: '0.35rem 0 0', color: 'var(--muted)' }}>
               چند تیکت اخیر ثبت‌شده در سامانه.
             </p>
           </div>
@@ -357,55 +513,6 @@ const agentChartData = agentStats.map((agent) => ({
                     <td>{ticket.user?.username || '-'}</td>
 
                     <td>{new Date(ticket.created_at).toLocaleDateString('fa-IR')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <section className="card" style={{ marginTop: '1.25rem' }}>
-        <div className="toolbar" style={{ marginBottom: '1rem' }}>
-          <div>
-            <h2 style={{ margin: 0 }}>آمار کارشناسان</h2>
-            <p style={{ margin: '0.35rem 0 0', color: '#64748b' }}>
-              تعداد تیکت‌های ارجاع‌شده به هر کارشناس.
-            </p>
-          </div>
-        </div>
-
-        {agentStats.length === 0 ? (
-          <div className="empty-state">هنوز کارشناسی ثبت نشده است.</div>
-        ) : (
-          <div className="table-wrap table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>کارشناس</th>
-                  <th>ایمیل</th>
-                  <th>کل تیکت‌ها</th>
-                  <th>باز</th>
-                  <th>در انتظار</th>
-                  <th>بسته</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {agentStats.map((agent) => (
-                  <tr key={agent.id}>
-                    <td>
-                      <strong>{agent.username}</strong>
-                      <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
-                        #{agent.id}
-                      </div>
-                    </td>
-
-                    <td>{agent.email || '-'}</td>
-                    <td>{agent.assigned_tickets_count}</td>
-                    <td>{agent.open_tickets_count}</td>
-                    <td>{agent.pending_tickets_count}</td>
-                    <td>{agent.closed_tickets_count}</td>
                   </tr>
                 ))}
               </tbody>

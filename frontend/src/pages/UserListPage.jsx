@@ -1,489 +1,435 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
+import Avatar from '../components/Avatar';
 
 export default function UserListPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-
   const [newUser, setNewUser] = useState({
     username: '',
     email: '',
-    phone: '',
-    password: '',
-    password2: '',
     role: 'user',
+    password: '',
+    avatar: null,
   });
-
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingUser, setEditingUser] = useState(null);
+  const [editForm, setEditForm] = useState({
+    username: '',
+    password: '',
+    email: '',
+    phone: '',
+    avatar: null,
+  });
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    setError('');
+  const handleRoleChange = async (userId, newRole) => {
+  setError('');
+  setSuccess('');
 
-    try {
-      const res = await api.get('/auth/users/', {
-        params: { page },
-      });
+  try {
+    await api.patch(`/auth/users/${userId}/update_role/`, {
+      role: newRole,
+    });
 
-      const data = Array.isArray(res.data) ? res.data : res.data.results || [];
-      const count = Array.isArray(res.data) ? data.length : res.data.count || data.length;
+    setSuccess('نقش کاربر با موفقیت تغییر کرد.');
+    fetchUsers();
+  } catch (err) {
+    console.log('ROLE UPDATE ERROR:', err.response?.data);
+    setError('خطا در تغییر نقش کاربر');
+  }
+};
+const handleToggleActive = async (userId, isActive) => {
+  setError('');
+  setSuccess('');
 
-      setUsers(data);
-      setTotalPages(Math.ceil(count / 10) || 1);
-    } catch (err) {
-      console.error(err);
-      setError('خطا در دریافت کاربران');
-    } finally {
-      setLoading(false);
+  try {
+    if (isActive) {
+      await api.patch(`/auth/users/${userId}/deactivate/`);
+      setSuccess('کاربر با موفقیت غیرفعال شد.');
+    } else {
+      await api.patch(`/auth/users/${userId}/activate/`);
+      setSuccess('کاربر با موفقیت فعال شد.');
     }
-  };
 
+    fetchUsers();
+  } catch (err) {
+    console.log('ACTIVE UPDATE ERROR:', err.response?.data);
+    setError(err.response?.data?.error || 'خطا در تغییر وضعیت کاربر');
+  }
+};
+
+const handleDeleteUser = async (userId) => {
+  const confirmed = window.confirm('آیا از حذف این کاربر مطمئن هستید؟');
+
+  if (!confirmed) return;
+
+  setError('');
+  setSuccess('');
+
+  try {
+    await api.delete(`/auth/users/${userId}/`);
+    setSuccess('کاربر با موفقیت حذف شد.');
+    fetchUsers();
+  } catch (err) {
+    console.log('DELETE USER ERROR:', err.response?.data);
+    setError('خطا در حذف کاربر');
+  }
+};
+
+const openEditUser = (u) => {
+  setEditingUser(u);
+ setEditForm({
+  username: u.username || '',
+  email: u.email || '',
+  phone: u.phone || '',
+  password: '',
+  avatar: null,
+});
+};
+
+const handleUpdateUser = async (e) => {
+  e.preventDefault();
+
+  if (!editingUser) return;
+
+  const formData = new FormData();
+  formData.append('username', editForm.username);
+  formData.append('email', editForm.email);
+  formData.append('phone', editForm.phone);
+
+  if (editForm.password) {
+  formData.append('password', editForm.password);
+}
+
+  if (editForm.avatar) {
+    formData.append('avatar', editForm.avatar);
+  }
+
+  try {
+    await api.patch(`/auth/users/${editingUser.id}/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    setSuccess('اطلاعات کاربر با موفقیت ویرایش شد.');
+    setEditingUser(null);
+    fetchUsers();
+  } catch (err) {
+    console.log('UPDATE USER ERROR:', err.response?.data);
+    setError('خطا در ویرایش کاربر');
+  }
+};
+const fetchUsers = async () => {
+  setLoading(true);
+  setError('');
+
+  try {
+    const res = await api.get('/auth/users/')
+
+    const data = Array.isArray(res.data)
+      ? res.data
+      : res.data.results || [];
+
+    setUsers(data);
+  } catch (err) {
+    console.log('USERS LIST ERROR:', err.response?.data);
+    setError('خطا در دریافت کاربران');
+  } finally {
+    setLoading(false);
+  }
+};
   useEffect(() => {
     fetchUsers();
-  }, [page]);
-
-  const showSuccess = (message) => {
-    setSuccess(message);
-    setTimeout(() => setSuccess(''), 3000);
-  };
-
-  const getRoleText = (role) => {
-    switch (role) {
-      case 'admin':
-        return 'مدیر';
-      case 'agent':
-        return 'اپراتور';
-      case 'user':
-        return 'کاربر عادی';
-      default:
-        return role;
-    }
-  };
-
-  const getRoleClass = (role) => {
-    switch (role) {
-      case 'admin':
-        return 'badge badge-revision';
-      case 'agent':
-        return 'badge badge-pending';
-      case 'user':
-        return 'badge badge-open';
-      default:
-        return 'badge';
-    }
-  };
-
-  const resetNewUser = () => {
-    setNewUser({
-      username: '',
-      email: '',
-      phone: '',
-      password: '',
-      password2: '',
-      role: 'user',
-    });
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('آیا از حذف این کاربر مطمئن هستید؟')) return;
-
-    try {
-      await api.delete(`/auth/users/${id}/`);
-      showSuccess('کاربر با موفقیت حذف شد.');
-      fetchUsers();
-    } catch (err) {
-      console.error(err);
-      setError('خطا در حذف کاربر');
-    }
-  };
-
-  const handleRoleChange = async (id, newRole) => {
-    try {
-      await api.patch(`/auth/users/${id}/update_role/`, {
-        role: newRole,
-      });
-
-      showSuccess('نقش کاربر با موفقیت تغییر کرد.');
-      fetchUsers();
-    } catch (err) {
-      console.error(err);
-      setError('خطا در تغییر نقش کاربر');
-    }
-  };
-
-  const handleToggleActive = async (id, isActive) => {
-    try {
-      await api.patch(`/auth/users/${id}/update_role/`, {
-        is_active: !isActive,
-      });
-
-      showSuccess(isActive ? 'کاربر غیرفعال شد.' : 'کاربر فعال شد.');
-      fetchUsers();
-    } catch (err) {
-      console.error(err);
-      setError('خطا در تغییر وضعیت کاربر');
-    }
-  };
+  }, []);
 
   const handleAddUser = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
-    if (newUser.password !== newUser.password2) {
-      setError('رمز عبور و تکرار آن مطابقت ندارند');
-      return;
-    }
+    const formData = new FormData();
+    formData.append('username', newUser.username);
+    formData.append('email', newUser.email);
+    formData.append('role', newUser.role);
+    formData.append('password', newUser.password);
+    if (newUser.avatar) formData.append('avatar', newUser.avatar);
 
     try {
-      await api.post('/auth/users/', newUser);
-
-      setShowAddModal(false);
-      resetNewUser();
-      showSuccess('کاربر جدید با موفقیت ایجاد شد.');
+      await api.post('/auth/users/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setSuccess('کاربر با موفقیت ایجاد شد.');
+      setNewUser({ username: '', email: '', role: 'user', password: '', avatar: null });
       fetchUsers();
     } catch (err) {
-      console.log('ADD USER ERROR:', err.response?.data);
-
-      const data = err.response?.data;
-      let msg = 'خطا در ایجاد کاربر';
-
-      if (data) {
-        if (data.username) msg = data.username[0];
-        else if (data.email) msg = data.email[0];
-        else if (data.phone) msg = data.phone[0];
-        else if (data.password) msg = data.password[0];
-        else if (data.password2) msg = data.password2[0];
-        else if (data.role) msg = data.role[0];
-        else if (data.detail) msg = data.detail;
-        else msg = JSON.stringify(data);
-      }
-
-      setError(msg);
+      console.error(err.response?.data);
+      setError('خطا در ایجاد کاربر');
     }
   };
 
-  const filteredUsers = users.filter((user) => {
-    const keyword = search.toLowerCase();
-
-    return (
-      user.username?.toLowerCase().includes(keyword) ||
-      user.email?.toLowerCase().includes(keyword) ||
-      user.phone?.toLowerCase().includes(keyword)
-    );
-  });
-
-  if (loading) {
-    return <div className="loading">در حال دریافت کاربران...</div>;
-  }
-
   return (
     <main className="page">
-      <div className="toolbar">
-        <div>
-          <h1 className="page-title">مدیریت کاربران</h1>
-          <p style={{ margin: 0, color: '#64748b', fontWeight: 500 }}>
-            کاربران سامانه را مشاهده، اضافه، حذف یا سطح دسترسی آن‌ها را مدیریت کنید.
-          </p>
-        </div>
+      <h1>مدیریت کاربران</h1>
 
-        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
-          + کاربر جدید
-        </button>
-      </div>
+      <section className="card">
+        <h2>افزودن کاربر جدید</h2>
+        {error && <div className="alert alert-error">{error}</div>}
+        {success && <div className="alert alert-success">{success}</div>}
 
-      {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
-
-      <div className="card" style={{ marginBottom: '1.25rem' }}>
-        <div className="toolbar" style={{ marginBottom: 0 }}>
-          <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
-            <label>جستجو</label>
+        <form onSubmit={handleAddUser}>
+          <div className="form-group">
+            <label>نام کاربری</label>
             <input
               className="form-control"
-              type="text"
-              placeholder="نام کاربری، ایمیل یا شماره تلفن..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={newUser.username}
+              onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+              required
             />
           </div>
 
-          <span
-            className="badge"
-            style={{
-              background: '#dbeafe',
-              color: '#1d4ed8',
-              alignSelf: 'end',
-              marginBottom: '0.25rem',
-            }}
-          >
-            {filteredUsers.length} کاربر
-          </span>
-        </div>
+          <div className="form-group">
+            <label>ایمیل</label>
+            <input
+              className="form-control"
+              type="email"
+              value={newUser.email}
+              onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>رمز عبور</label>
+            <input
+              className="form-control"
+              type="password"
+              value={newUser.password}
+              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>نقش</label>
+            <select
+              className="form-control"
+              value={newUser.role}
+              onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+            >
+              <option value="user">کاربر عادی</option>
+              <option value="agent">اپراتور</option>
+              <option value="admin">مدیر کل</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>آواتار (اختیاری)</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setNewUser({ ...newUser, avatar: e.target.files[0] || null })}
+            />
+          </div>
+
+          <button className="btn btn-primary" type="submit">افزودن کاربر</button>
+        </form>
+      </section>
+      {editingUser && (
+  <section className="card" style={{ marginTop: '2rem' }}>
+    <h2>ویرایش کاربر: {editingUser.username}</h2>
+
+    <form onSubmit={handleUpdateUser}>
+      <div className="form-group">
+        <label>نام کاربری</label>
+        <input
+          className="form-control"
+          value={editForm.username}
+          onChange={(e) =>
+            setEditForm({ ...editForm, username: e.target.value })
+          }
+          required
+        />
       </div>
 
-      <section className="card">
-        <div className="toolbar" style={{ marginBottom: '1rem' }}>
-          <div>
-            <h2 style={{ margin: 0 }}>لیست کاربران</h2>
-            <p style={{ margin: '0.35rem 0 0', color: '#64748b' }}>
-              همه کاربران ثبت‌شده در سامانه.
-            </p>
-          </div>
-        </div>
+      <div className="form-group">
+        <label>ایمیل</label>
+        <input
+          className="form-control"
+          type="email"
+          value={editForm.email}
+          onChange={(e) =>
+            setEditForm({ ...editForm, email: e.target.value })
+          }
+        />
+      </div>
 
-        {filteredUsers.length === 0 ? (
-          <div className="empty-state">کاربری با این جستجو پیدا نشد.</div>
-        ) : (
-          <div className="table-wrap table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>کاربر</th>
-                  <th>ایمیل</th>
-                  <th>تلفن</th>
-                  <th>نقش</th>
-                  <th>وضعیت</th>
-                  <th>عملیات</th>
-                </tr>
-              </thead>
+      <div className="form-group">
+        <label>تلفن</label>
+        <input
+          className="form-control"
+          value={editForm.phone}
+          onChange={(e) =>
+            setEditForm({ ...editForm, phone: e.target.value })
+          }
+        />
+      </div>
+      <div className="form-group">
+  <label>رمز عبور جدید</label>
+  <input
+    className="form-control"
+    type="password"
+    value={editForm.password}
+    onChange={(e) =>
+      setEditForm({
+        ...editForm,
+        password: e.target.value,
+      })
+    }
+    placeholder="برای عدم تغییر خالی بگذارید"
+  />
+</div>
 
-              <tbody>
-                {filteredUsers.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
-                        <span
-                          style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            background: '#dbeafe',
-                            color: '#1d4ed8',
-                            display: 'grid',
-                            placeItems: 'center',
-                            fontWeight: 900,
-                          }}
-                        >
-                          {user.username?.charAt(0)?.toUpperCase() || 'U'}
-                        </span>
+      <div className="form-group">
+        <label>آواتار جدید</label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) =>
+            setEditForm({
+              ...editForm,
+              avatar: e.target.files[0] || null,
+            })
+          }
+        />
+      </div>
 
-                        <div>
-                          <strong>{user.username}</strong>
-                          <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
-                            #{user.id}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
+      <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <button className="btn btn-primary" type="submit">
+          ذخیره تغییرات
+        </button>
 
-                    <td>{user.email || '-'}</td>
-                    <td>{user.phone || '-'}</td>
+        <button
+          className="btn btn-outline"
+          type="button"
+          onClick={() => setEditingUser(null)}
+        >
+          انصراف
+        </button>
+      </div>
+    </form>
+  </section>
+)}
+<section className="card" style={{ marginTop: '2rem' }}>
+  <h2>لیست کاربران</h2>
 
-                    <td>
-                      <select
-                        className="form-control"
-                        value={user.role}
-                        onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                        style={{ minWidth: '135px' }}
-                      >
-                        <option value="user">کاربر عادی</option>
-                        <option value="agent">اپراتور</option>
-                        <option value="admin">مدیر</option>
-                      </select>
+  {loading ? (
+    <div>در حال بارگذاری...</div>
+  ) : (
+    <table className="table">
+      <thead>
+        <tr>
+  <th>کاربر</th>
+  <th>ایمیل</th>
+  <th>نقش</th>
+  <th>وضعیت</th>
+  <th>عملیات</th>
+</tr>
+      </thead>
 
-                      <div style={{ marginTop: '0.45rem' }}>
-                        <span className={getRoleClass(user.role)}>{getRoleText(user.role)}</span>
-                      </div>
-                    </td>
-
-                    <td>
-                      <span
-                        className="badge"
-                        style={{
-                          background: user.is_active ? '#dcfce7' : '#fee2e2',
-                          color: user.is_active ? '#166534' : '#991b1b',
-                        }}
-                      >
-                        {user.is_active ? 'فعال' : 'غیرفعال'}
-                      </span>
-                    </td>
-
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <button
-                          className="btn btn-outline"
-                          onClick={() => handleToggleActive(user.id, user.is_active)}
-                        >
-                          {user.is_active ? 'غیرفعال کردن' : 'فعال کردن'}
-                        </button>
-
-                        <button className="btn btn-danger" onClick={() => handleDelete(user.id)}>
-                          حذف
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
+<tbody>
+  {users.map((u) => (
+    <tr key={u.id}>
+      <td>
         <div
           style={{
-            marginTop: '1.25rem',
             display: 'flex',
-            gap: '0.75rem',
-            justifyContent: 'center',
             alignItems: 'center',
+            gap: '10px',
           }}
         >
-          <button
-            className="btn btn-outline"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-          >
-            قبلی
-          </button>
-
-          <span style={{ fontWeight: 800, color: '#475569' }}>
-            صفحه {page} از {totalPages}
-          </span>
-
-          <button
-            className="btn btn-outline"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-          >
-            بعدی
-          </button>
+          <Avatar user={u} size="40px" />
+          <strong>{u.username}</strong>
         </div>
-      </section>
+      </td>
 
-      {showAddModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.45)',
-            display: 'grid',
-            placeItems: 'center',
-            zIndex: 1000,
-            padding: '1rem',
-          }}
-          onClick={() => setShowAddModal(false)}
+      <td>{u.email || '-'}</td>
+
+      <td>
+        <select
+          className="form-control"
+          value={u.role}
+          onChange={(e) => handleRoleChange(u.id, e.target.value)}
+          style={{ minWidth: '150px' }}
         >
-          <div
-            className="card"
-            style={{
-              width: 'min(520px, 100%)',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="toolbar">
-              <div>
-                <h2 style={{ margin: 0 }}>افزودن کاربر جدید</h2>
-                <p style={{ margin: '0.35rem 0 0', color: '#64748b' }}>
-                  اطلاعات کاربر را وارد کنید.
-                </p>
-              </div>
+          <option value="user">کاربر عادی</option>
+          <option value="agent">کارشناس</option>
+          <option value="admin">مدیر کل</option>
+        </select>
+      </td>
+      <td>
+  {u.is_active ? (
+    <span
+      className="badge"
+      style={{ background: '#dcfce7', color: '#166534' }}
+    >
+      فعال
+    </span>
+  ) : (
+    <span
+      className="badge"
+      style={{ background: '#fee2e2', color: '#991b1b' }}
+    >
+      غیرفعال
+    </span>
+  )}
+</td>
 
-              <button className="btn btn-outline" onClick={() => setShowAddModal(false)}>
-                بستن
-              </button>
-            </div>
+<td>
+<div
+  style={{
+    display: 'flex',
+    gap: '0.5rem',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'nowrap',
+  }}
+>    
+<button
+  className="btn btn-outline"
+  type="button"
+  onClick={() => openEditUser(u)}
+  style={{ minWidth: '80px' }}
+>
+  ویرایش
+</button>
 
-            <form onSubmit={handleAddUser}>
-              <div className="form-group">
-                <label>نام کاربری</label>
-                <input
-                  className="form-control"
-                  value={newUser.username}
-                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>ایمیل</label>
-                <input
-                  className="form-control"
-                  type="email"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>تلفن</label>
-                <input
-                  className="form-control"
-                  value={newUser.phone}
-                  onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
-                />
-              </div>
-
-              <div className="responsive-form-grid">
-                <div className="form-group">
-                  <label>رمز عبور</label>
-                  <input
-                    className="form-control"
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>تکرار رمز عبور</label>
-                  <input
-                    className="form-control"
-                    type="password"
-                    value={newUser.password2}
-                    onChange={(e) => setNewUser({ ...newUser, password2: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>نقش</label>
-                <select
-                  className="form-control"
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                >
-                  <option value="user">کاربر عادی</option>
-                  <option value="agent">اپراتور</option>
-                  <option value="admin">مدیر</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
-                <button className="btn btn-primary" type="submit">
-                  ایجاد کاربر
-                </button>
-
-                <button
-                  className="btn btn-outline"
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                >
-                  انصراف
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+<button
+  className="btn btn-outline"
+  type="button"
+  onClick={() => handleToggleActive(u.id, u.is_active)}
+  style={{ minWidth: '90px' }}
+>
+  {u.is_active ? 'غیرفعال' : 'فعال'}
+</button>
+<button
+  className="btn btn-outline"
+  type="button"
+  onClick={() => handleDeleteUser(u.id)}
+  style={{
+    minWidth: '80px',
+    color: '#991b1b',
+    borderColor: '#fecaca',
+  }}
+>
+  حذف
+</button>
+  </div>
+</td>
+    </tr>
+  ))}
+</tbody>
+    </table>
+  )}
+</section>
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
+import Avatar from '../components/Avatar';
 
 export default function TicketsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -188,18 +189,35 @@ export default function TicketsPage() {
             </select>
           </div>
 
-          <button className="btn btn-primary" type="submit">
-            جستجو
-          </button>
+<button
+  className="btn btn-primary"
+  type="submit"
+  style={{
+    marginTop: '20px',
+    marginLeft: '12px',
+  }}
+>
+  جستجو
+</button>
 
           {search ? (
-            <button className="btn btn-outline" type="button" onClick={handleClearSearch}>
-              پاک کردن
-            </button>
+<button
+  className="btn btn-outline"
+  type="button"
+  onClick={handleClearSearch}
+  style={{ marginTop: '28px' }}
+>
+  پاک کردن
+</button>
           ) : (
-            <button className="btn btn-outline" type="button" disabled>
-              پاک کردن
-            </button>
+<button
+  className="btn btn-outline"
+  type="button"
+  disabled
+  style={{ marginTop: '28px' }}
+>
+  پاک کردن
+</button>
           )}
         </form>
       </div>
@@ -222,14 +240,16 @@ export default function TicketsPage() {
           <div className="table-wrap table-responsive">
             <table className="table">
               <thead>
-                <tr>
-                  <th>عنوان</th>
-                  <th>دسته‌بندی</th>
-                  <th>وضعیت</th>
-                  <th>اولویت</th>
-                  <th>تاریخ ایجاد</th>
-                  <th>عملیات</th>
-                </tr>
+              <tr>
+  <th>عنوان</th>
+  <th>ثبت‌کننده</th>
+  <th>کارشناس</th>
+  <th>دسته‌بندی</th>
+  <th>وضعیت</th>
+  <th>اولویت</th>
+  <th>تاریخ ایجاد</th>
+  <th>عملیات</th>
+</tr>
               </thead>
 
               <tbody>
@@ -247,6 +267,29 @@ export default function TicketsPage() {
                         #{ticket.id}
                       </div>
                     </td>
+                    <td>
+  {ticket.user ? (
+<div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+  <Avatar user={ticket.user} size="28px" />
+  <span style={{ fontSize: '0.85rem' }}>{ticket.user.username}</span>
+</div>
+  ) : (
+    '-'
+  )}
+</td>
+
+<td>
+  {ticket.assigned_to_detail ? (
+   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+  <Avatar user={ticket.assigned_to_detail} size="28px" />
+  <span style={{ fontSize: '0.85rem' }}>
+    {ticket.assigned_to_detail.username}
+  </span>
+</div>
+  ) : (
+    <span style={{ color: '#94a3b8' }}>تعیین نشده</span>
+  )}
+</td>
 
                     <td>{ticket.category_name || '-'}</td>
 

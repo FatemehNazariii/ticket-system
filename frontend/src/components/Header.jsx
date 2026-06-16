@@ -142,9 +142,9 @@ const fetchUnreadNotifications = async () => {
         top: 0,
         zIndex: 50,
         direction: 'rtl',
-        background: 'rgba(255, 255, 255, 0.86)',
+        background: 'var(--card)',
         backdropFilter: 'blur(14px)',
-        borderBottom: '1px solid #e5e7eb',
+       borderBottom: '1px solid var(--border)',
         boxShadow: '0 6px 20px rgba(15, 23, 42, 0.05)',
       }}
     >
@@ -174,7 +174,8 @@ const fetchUnreadNotifications = async () => {
               display: 'flex',
               alignItems: 'center',
               gap: '0.7rem',
-              color: '#111827',
+              color: 'var(--text)'
+
             }}
           >
             <div
@@ -197,7 +198,7 @@ const fetchUnreadNotifications = async () => {
               <div style={{ fontWeight: 900, fontSize: '1.05rem' }}>
                 سامانه تیکتینگ
               </div>
-              <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>
                 مدیریت پشتیبانی
               </div>
             </div>
@@ -261,8 +262,8 @@ const fetchUnreadNotifications = async () => {
 
             <div
               style={{
-                background: '#f8fafc',
-                border: '1px solid #e5e7eb',
+                background: 'var(--card)',
+                border: '1px solid var(--border)',
                 padding: '0.45rem 0.75rem',
                 borderRadius: '999px',
                 display: 'flex',
@@ -291,7 +292,7 @@ const fetchUnreadNotifications = async () => {
 
               <span style={{ color: '#94a3b8' }}>•</span>
 
-              <span style={{ color: '#64748b', fontSize: '0.9rem' }}>
+              <span style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
                 {getRoleText()}
               </span>
             </div>

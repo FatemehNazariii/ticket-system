@@ -9,7 +9,9 @@ from django.http import HttpResponse
 from openpyxl import Workbook
 from .models import Ticket, Message, Category, Notification, ActivityLog, KnowledgeArticle
 from .serializers import TicketSerializer, MessageSerializer, CategorySerializer, NotificationSerializer, KnowledgeArticleSerializer
-
+from rest_framework.exceptions import PermissionDenied
+from django.db.models import Q
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 class IsAgentOrAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -101,6 +103,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
 
 class TicketViewSet(viewsets.ModelViewSet):
     serializer_class = TicketSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         user = self.request.user
@@ -342,7 +345,23 @@ class TicketViewSet(viewsets.ModelViewSet):
         serializer = MessageSerializer(data=request.data)
 
         if serializer.is_valid():
-            message_obj = serializer.save(ticket=ticket, author=request.user)
+            content = serializer.validated_data.get('content', '')
+
+            is_staff_user = (
+                request.user.is_staff or
+                getattr(request.user, 'role', None) in ['agent', 'admin']
+            )
+
+            signature = getattr(request.user, 'signature', None)
+
+            if is_staff_user and signature:
+                content = f"{content}\n\n---\n{signature}"
+
+            message_obj = serializer.save(
+                ticket=ticket,
+                author=request.user,
+                content=content
+            )
             
             create_activity_log(
             ticket=ticket,
@@ -503,24 +522,74 @@ class KnowledgeArticleViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        qs = KnowledgeArticle.objects.select_related('category', 'created_by')
+        user = self.request.user
 
-        if not (
-            self.request.user.is_staff
-            or self.request.user.is_superuser
-            or getattr(self.request.user, 'role', None) == 'admin'
-        ):
+        qs = KnowledgeArticle.objects.select_related(
+            'category',
+            'created_by'
+        )
+
+        if user.is_superuser:
+            pass
+        elif user.is_staff or getattr(user, 'role', None) in ['admin', 'agent']:
+            qs = qs.filter(
+                Q(is_published=True) |
+                Q(created_by=user)
+            )
+        else:
             qs = qs.filter(is_published=True)
 
         search = self.request.query_params.get('search')
         if search:
-            qs = qs.filter(title__icontains=search) | qs.filter(content__icontains=search)
+            qs = qs.filter(
+                Q(title__icontains=search) |
+                Q(content__icontains=search)
+            )
 
         category = self.request.query_params.get('category')
         if category:
             qs = qs.filter(category_id=category)
 
-        return qs.order_by('-created_at')
+        return qs.distinct().order_by('-created_at')
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        user = self.request.user
+
+        if user.is_superuser:
+            serializer.save(created_by=user)
+        else:
+            serializer.save(
+                created_by=user,
+                is_published=False
+            )
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        article = self.get_object()
+
+        if user.is_superuser:
+            serializer.save()
+            return
+
+        if article.created_by_id != user.id:
+            raise PermissionDenied('شما فقط می‌توانید مقاله‌های خودتان را ویرایش کنید.')
+
+        if article.is_published:
+            raise PermissionDenied('مقاله منتشرشده فقط توسط مدیر کل قابل ویرایش است.')
+
+        serializer.save(is_published=False)
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+
+        if user.is_superuser:
+            instance.delete()
+            return
+
+        if instance.created_by_id != user.id:
+            raise PermissionDenied('شما فقط می‌توانید مقاله‌های خودتان را حذف کنید.')
+
+        if instance.is_published:
+            raise PermissionDenied('مقاله منتشرشده فقط توسط مدیر کل قابل حذف است.')
+
+        instance.delete()

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import socket from '../socket';
+import Avatar from '../components/Avatar';
 
 export default function TicketDetailPage() {
   const { user } = useAuth();
@@ -52,24 +53,19 @@ export default function TicketDetailPage() {
       console.error('خطا در دریافت دسته‌بندی‌ها:', err);
     }
   };
-
   const fetchAgents = async () => {
-try {
-  const res = await api.get('/auth/users/agents/');
-  const list = Array.isArray(res.data)
-    ? res.data
-    : res.data.results || [];
+    try {
+      const res = await api.get('/auth/users/agents/');
 
-  setAgents(list);
-} catch (err) {
-  console.error('خطا در دریافت کارشناسان:', err);
+      const list = Array.isArray(res.data)
+        ? res.data
+        : res.data.results || [];
 
-  toast.error(
-    err.response?.data?.error ||
-    err.response?.data?.detail ||
-    'خطا در دریافت کارشناسان'
-  );
-}
+      setAgents(list);
+    } catch (err) {
+      console.error('خطا در دریافت کارشناسان:', err);
+    }
+  };
 
 useEffect(() => {
   fetchTicket();
@@ -355,236 +351,141 @@ useEffect(() => {
         </div>
       )}
 
-      <div className="ticket-detail-layout">
-        <section className="card ticket-main-card">
-          <div
+<div className="ticket-detail-layout">
+  <section className="card ticket-main-card">
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: '1rem',
+        alignItems: 'flex-start',
+        marginBottom: '1.5rem',
+      }}
+    >
+      <div>
+        <div style={{ color: '#94a3b8', fontWeight: 800, marginBottom: '0.4rem' }}>
+          #{ticket.id}
+        </div>
+
+        <h2 style={{ margin: 0, fontSize: '1.6rem', color: '#111827' }}>
+          {ticket.title}
+        </h2>
+
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+            marginTop: '1rem',
+          }}
+        >
+          <span className={getStatusClass(ticket.status)}>
+            {getStatusText(ticket.status)}
+          </span>
+
+          <span
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: '1rem',
-              alignItems: 'flex-start',
-              marginBottom: '1.25rem',
+              display: 'inline-flex',
+              padding: '0.25rem 0.7rem',
+              borderRadius: '999px',
+              fontSize: '0.85rem',
+              fontWeight: 800,
+              ...getPriorityStyle(ticket.priority),
             }}
           >
-            <div>
-              <div style={{ color: '#94a3b8', fontWeight: 800, marginBottom: '0.4rem' }}>
-                #{ticket.id}
-              </div>
+            {getPriorityText(ticket.priority)}
+          </span>
 
-              <h2 style={{ margin: 0, fontSize: '1.6rem', color: '#111827' }}>
-                {ticket.title}
-              </h2>
-            </div>
-
-            <span className={getStatusClass(ticket.status)}>
-              {getStatusText(ticket.status)}
-            </span>
-          </div>
-
-         <div className="ticket-description-box">
-  {ticket.description}
-</div>
-
-          {ticket.attachment && (
-            <a
-              href={fileUrl(ticket.attachment)}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                marginTop: '1rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                textDecoration: 'none',
-                background: '#eff6ff',
-                color: '#1d4ed8',
-                padding: '0.75rem 1rem',
-                borderRadius: '14px',
-                fontWeight: 800,
-                border: '1px solid #bfdbfe',
-              }}
-            >
-              📎 مشاهده / دانلود فایل تیکت
-            </a>
-          )}
-        </section>
-
-        <aside className="card ticket-side-card">
-          <h3 style={{ marginTop: 0 }}>اطلاعات تیکت</h3>
-
-          <div style={{ display: 'grid', gap: '1rem' }}>
-            <div>
-              <label style={{ fontWeight: 800, color: '#475569' }}>وضعیت</label>
-
-              {canChangeStatus ? (
-                <select
-                  className="form-control"
-                  value={ticket.status}
-                  onChange={(e) => handleStatusChange(e.target.value)}
-                  disabled={statusUpdating}
-                  style={{ marginTop: '0.4rem' }}
-                >
-                  <option value="open">باز</option>
-                  <option value="pending">در انتظار</option>
-                  <option value="closed">بسته</option>
-                  <option value="revision">نیاز به اصلاح</option>
-                </select>
-              ) : (
-                <div style={{ marginTop: '0.5rem' }}>
-                  <span className={getStatusClass(ticket.status)}>
-                    {getStatusText(ticket.status)}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label style={{ fontWeight: 800, color: '#475569' }}>اولویت</label>
-
-              {canChangeStatus ? (
-                <select
-                  className="form-control"
-                  value={ticket.priority}
-                  onChange={(e) => handlePriorityChange(e.target.value)}
-                  style={{ marginTop: '0.4rem' }}
-                >
-                  <option value="low">پایین</option>
-                  <option value="medium">متوسط</option>
-                  <option value="high">بالا</option>
-                  <option value="urgent">فوری</option>
-                </select>
-              ) : (
-                <div style={{ marginTop: '0.5rem' }}>
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      padding: '0.25rem 0.7rem',
-                      borderRadius: '999px',
-                      fontSize: '0.85rem',
-                      fontWeight: 800,
-                      ...getPriorityStyle(ticket.priority),
-                    }}
-                  >
-                    {getPriorityText(ticket.priority)}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label style={{ fontWeight: 800, color: '#475569' }}>دسته‌بندی</label>
-
-              {canChangeStatus ? (
-                <select
-                  className="form-control"
-                  value={ticket.category || ''}
-                  onChange={(e) => handleCategoryChange(e.target.value)}
-                  style={{ marginTop: '0.4rem' }}
-                >
-                  <option value="">بدون دسته‌بندی</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <p style={{ margin: '0.5rem 0 0', color: '#334155', fontWeight: 700 }}>
-                  {ticket.category_name || '-'}
-                </p>
-              )}
-            </div>
-            <div>
-  <label style={{ fontWeight: 800, color: '#475569' }}>کارشناس مسئول</label>
-
-  {canChangeStatus ? (
-    <select
-      className="form-control"
-      value={ticket.assigned_to || ''}
-      onChange={(e) => handleAssignChange(e.target.value)}
-      style={{ marginTop: '0.4rem' }}
-    >
-      <option value="">بدون کارشناس</option>
-      {agents.map((agent) => (
-        <option key={agent.id} value={agent.id}>
-          {agent.username} - {agent.role}
-        </option>
-      ))}
-    </select>
-  ) : (
-    <p style={{ margin: '0.5rem 0 0', color: '#334155', fontWeight: 700 }}>
-      {ticket.assigned_to_detail?.username || 'ارجاع نشده'}
-    </p>
-  )}
-</div>
-
-            <div>
-              <label style={{ fontWeight: 800, color: '#475569' }}>ثبت‌کننده</label>
-              <p style={{ margin: '0.5rem 0 0', color: '#334155', fontWeight: 700 }}>
-                {ticket.user?.username || '-'}
-              </p>
-            </div>
-
-            <div>
-              <label style={{ fontWeight: 800, color: '#475569' }}>تاریخ ایجاد</label>
-              <p style={{ margin: '0.5rem 0 0', color: '#334155', fontWeight: 700 }}>
-                {new Date(ticket.created_at).toLocaleString('fa-IR')}
-              </p>
-            </div>
-            <div>
-  <label style={{ fontWeight: 800, color: '#475569' }}>
-    SLA پاسخگویی
-  </label>
-
-  <div style={{ marginTop: '0.5rem' }}>
-    {ticket.sla_status === 'waiting' ? (
-      <span
-        className="badge"
-        style={{
-          background: '#fef3c7',
-          color: '#92400e',
-        }}
-      >
-        در انتظار اولین پاسخ
-      </span>
-    ) : ticket.sla_status === 'ok' ? (
-      <span
-        className="badge"
-        style={{
-          background: '#dcfce7',
-          color: '#166534',
-        }}
-      >
-        رعایت شده ✅
-      </span>
-    ) : (
-      <span
-        className="badge"
-        style={{
-          background: '#fee2e2',
-          color: '#991b1b',
-        }}
-      >
-        نقض شده ❌
-      </span>
-    )}
-  </div>
-
-  <p
-    style={{
-      margin: '0.5rem 0 0',
-      color: '#64748b',
-      fontWeight: 700,
-    }}
-  >
-    {ticket.first_response_minutes === null
-      ? 'هنوز پاسخی ثبت نشده'
-      : `اولین پاسخ: ${ticket.first_response_minutes} دقیقه بعد`}
-  </p>
-</div>
-          </div>
-        </aside>
+          <span className="badge" style={{ background: '#f1f5f9', color: '#475569' }}>
+            {ticket.category_name || 'بدون دسته‌بندی'}
+          </span>
+        </div>
       </div>
+    </div>
+
+    <div className="ticket-description-box">
+      {ticket.description}
+    </div>
+
+    {ticket.attachment && (
+      <a
+        href={fileUrl(ticket.attachment)}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          marginTop: '1rem',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          textDecoration: 'none',
+          background: '#eff6ff',
+          color: '#1d4ed8',
+          padding: '0.75rem 1rem',
+          borderRadius: '14px',
+          fontWeight: 800,
+          border: '1px solid #bfdbfe',
+        }}
+      >
+        📎 مشاهده / دانلود فایل تیکت
+      </a>
+    )}
+  </section>
+
+<aside className="card ticket-side-card">
+  <h3>اطلاعات تیکت</h3>
+
+  <div className="ticket-side-info">
+    <div className="ticket-side-item">
+      <span>کارشناس مسئول</span>
+
+      {canChangeStatus ? (
+        <select
+          className="form-control"
+          value={ticket.assigned_to || ''}
+          onChange={(e) => handleAssignChange(e.target.value)}
+        >
+          <option value="">بدون کارشناس</option>
+          {agents.map((agent) => (
+            <option key={agent.id} value={agent.id}>
+              {agent.username} - {agent.role}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <strong>{ticket.assigned_to_detail?.username || 'ارجاع نشده'}</strong>
+      )}
+    </div>
+
+    <div className="ticket-side-item">
+      <span>ثبت‌کننده</span>
+      <strong>{ticket.user?.username || '-'}</strong>
+    </div>
+
+    <div className="ticket-side-item">
+      <span>تاریخ ایجاد</span>
+      <strong>{new Date(ticket.created_at).toLocaleString('fa-IR')}</strong>
+    </div>
+
+    <div className="ticket-side-item">
+      <span>SLA پاسخگویی</span>
+
+      {ticket.sla_status === 'waiting' ? (
+        <strong style={{ color: '#92400e' }}>در انتظار اولین پاسخ</strong>
+      ) : ticket.sla_status === 'ok' ? (
+        <strong style={{ color: '#166534' }}>رعایت شده ✅</strong>
+      ) : (
+        <strong style={{ color: '#991b1b' }}>نقض شده ❌</strong>
+      )}
+
+      <strong style={{ marginTop: '0.35rem', color: '#64748b' }}>
+        {ticket.first_response_minutes === null
+          ? 'هنوز پاسخی ثبت نشده'
+          : `اولین پاسخ: ${ticket.first_response_minutes} دقیقه بعد`}
+      </strong>
+    </div>
+  </div>
+</aside>
+</div>
       
 
       <section className="card ticket-messages-card">
@@ -622,20 +523,10 @@ useEffect(() => {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                      <span
-                        style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '50%',
-                          background: isStaffMessage ? '#2563eb' : '#e2e8f0',
-                          color: isStaffMessage ? 'white' : '#334155',
-                          display: 'grid',
-                          placeItems: 'center',
-                          fontWeight: 900,
-                        }}
-                      >
-                        {msg.author?.username?.charAt(0)?.toUpperCase() || 'U'}
-                      </span>
+<Avatar
+  user={msg.author}
+  size="40px"
+/>
 
                       <div>
                         <strong style={{ color: '#111827' }}>
@@ -732,39 +623,114 @@ useEffect(() => {
           </div>
         )}
       </section>
-      <section className="card" style={{ marginTop: '1.25rem' }}>
-  <div className="toolbar" style={{ marginBottom: '1rem' }}>
-    <div>
-      <h2 style={{ margin: 0 }}>تاریخچه فعالیت‌ها</h2>
-      <p style={{ margin: '0.35rem 0 0', color: '#64748b' }}>
-        تغییرات و رویدادهای ثبت‌شده برای این تیکت.
-      </p>
+   {canChangeStatus && (
+  <section
+    className="card"
+    style={{
+      marginTop: '1.25rem',
+      background: 'linear-gradient(180deg, #ffffff, #f8fafc)',
+    }}
+  >
+    <div className="toolbar" style={{ marginBottom: '1.25rem' }}>
+      <div>
+        <h2 style={{ margin: 0 }}>🕓 تاریخچه فعالیت‌ها</h2>
+        <p style={{ margin: '0.35rem 0 0', color: '#64748b' }}>
+          تغییرات مهم ثبت‌شده برای این تیکت.
+        </p>
+      </div>
+
+      <span className="badge" style={{ background: '#eef2ff', color: '#3730a3' }}>
+        {ticket.activity_logs?.length || 0} رویداد
+      </span>
     </div>
-  </div>
 
-  {!ticket.activity_logs || ticket.activity_logs.length === 0 ? (
-    <div className="empty-state">هنوز فعالیتی ثبت نشده است.</div>
-  ) : (
-    <div style={{ display: 'grid', gap: '0.75rem' }}>
-      {ticket.activity_logs.map((log) => (
-        <div key={log.id} className="message-box">
-          <strong>{log.description}</strong>
-
-          <div style={{ marginTop: '0.35rem', color: '#64748b', fontSize: '0.9rem' }}>
-            توسط {log.user?.username || 'سیستم'} •{' '}
-            {new Date(log.created_at).toLocaleString('fa-IR')}
-          </div>
-
-          {(log.old_value || log.new_value) && (
-            <div style={{ marginTop: '0.45rem', color: '#475569', fontSize: '0.9rem' }}>
-              از: {log.old_value || '-'} → به: {log.new_value || '-'}
+    {!ticket.activity_logs || ticket.activity_logs.length === 0 ? (
+      <div className="empty-state">هنوز فعالیتی ثبت نشده است.</div>
+    ) : (
+      <div style={{ display: 'grid', gap: '0.85rem' }}>
+        {ticket.activity_logs.map((log) => (
+          <div
+            key={log.id}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '42px 1fr',
+              gap: '0.85rem',
+              padding: '0.9rem 1rem',
+              border: '1px solid #e2e8f0',
+              borderRadius: '18px',
+              background: '#ffffff',
+            }}
+          >
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '14px',
+                background: '#eff6ff',
+                color: '#2563eb',
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: '1.15rem',
+              }}
+            >
+              📝
             </div>
-          )}
-        </div>
-      ))}
-    </div>
-  )}
-</section>
+
+            <div>
+              <strong style={{ color: '#0f172a' }}>{log.description}</strong>
+
+              <div style={{ marginTop: '0.3rem', color: '#64748b', fontSize: '0.9rem' }}>
+                توسط {log.user?.username || 'سیستم'} •{' '}
+                {new Date(log.created_at).toLocaleString('fa-IR')}
+              </div>
+
+              {(log.old_value || log.new_value) && (
+                <div
+                  style={{
+                    marginTop: '0.65rem',
+                    display: 'flex',
+                    gap: '0.5rem',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span
+                    style={{
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: '999px',
+                      background: '#f1f5f9',
+                      color: '#475569',
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    از: {log.old_value || '-'}
+                  </span>
+
+                  <span style={{ color: '#94a3b8', fontWeight: 900 }}>←</span>
+
+                  <span
+                    style={{
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: '999px',
+                      background: '#dcfce7',
+                      color: '#166534',
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    به: {log.new_value || '-'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </section>
+)}
+
 
 <section className="card ticket-reply-card">        {ticket.status === 'closed' ? (
           <div className="alert alert-error" style={{ marginBottom: 0 }}>
@@ -817,5 +783,4 @@ useEffect(() => {
       </section>
     </main>
   );
-}
 }

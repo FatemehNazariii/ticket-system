@@ -112,6 +112,10 @@ class NotificationSerializer(serializers.ModelSerializer):
 class KnowledgeArticleSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     created_by_detail = UserSerializer(source='created_by', read_only=True)
+    created_by_username = serializers.CharField(
+        source='created_by.username',
+        read_only=True
+    )
 
     class Meta:
         model = KnowledgeArticle
@@ -124,7 +128,55 @@ class KnowledgeArticleSerializer(serializers.ModelSerializer):
             'is_published',
             'created_by',
             'created_by_detail',
+            'created_by_username',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['created_by', 'created_at', 'updated_at']
+        read_only_fields = [
+            'created_by',
+            'created_at',
+            'updated_at',
+        ]
+
+    def validate_is_published(self, value):
+        user = self.context['request'].user
+        if value and getattr(user, 'role', None) == 'admin' and not user.is_superuser:
+            raise serializers.ValidationError(
+                "ادمین معمولی نمی‌تواند مقاله را منتشر کند، فقط مدیر کل می‌تواند."
+            )
+        return value
+    
+def get_first_response_minutes(self, obj):
+    first_staff_message = obj.messages.filter(
+        author__role__in=['agent', 'admin']
+    ).order_by('created_at').first()
+
+    if not first_staff_message:
+        return None
+
+    diff = first_staff_message.created_at - obj.created_at
+    return int(diff.total_seconds() // 60)
+
+
+def get_sla_status(self, obj):
+    from django.utils import timezone
+
+    first_response_minutes = self.get_first_response_minutes(obj)
+
+    if first_response_minutes is not None:
+        if first_response_minutes <= 120:
+            return 'ok'         
+        elif first_response_minutes <= 240:
+            return 'warning'     
+        else:
+            return 'breached'   
+
+    elapsed = timezone.now() - obj.created_at
+    elapsed_minutes = int(elapsed.total_seconds() // 60)
+
+    if elapsed_minutes <= 120:
+        return 'waiting'        
+    elif elapsed_minutes <= 240:
+        return 'warning'       
+    else:
+        return 'breached'       

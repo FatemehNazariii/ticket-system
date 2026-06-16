@@ -4,10 +4,11 @@ let isRefreshing = false;
 let failedQueue = [];
 
 const processQueue = (error, token = null) => {
-  failedQueue.forEach(prom => {
-    if (error) prom.reject(error);
-    else prom.resolve(token);
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error);
+    else resolve(token);
   });
+
   failedQueue = [];
 };
 
@@ -18,7 +19,11 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("access");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -33,38 +38,51 @@ api.interceptors.response.use(
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        })
-          .then(token => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return api(originalRequest);
-          })
-          .catch(err => Promise.reject(err));
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        });
       }
 
       originalRequest._retry = true;
       isRefreshing = true;
 
       const refreshToken = localStorage.getItem("refresh");
+
       if (!refreshToken) {
         localStorage.removeItem("access");
+        localStorage.removeItem("refresh");
         window.location.href = "/login";
         return Promise.reject(error);
       }
 
       try {
-        const response = await axios.post("http://127.0.0.1:8000/api/auth/token/refresh/", {
-        refresh: refreshToken,
-      });
+        const response = await axios.post(
+          "http://127.0.0.1:8000/api/auth/token/refresh/",
+          { refresh: refreshToken }
+        );
+
         const newAccessToken = response.data.access;
+
+        if (!newAccessToken) {
+          throw new Error("No access token received");
+        }
+
         localStorage.setItem("access", newAccessToken);
+
         processQueue(null, newAccessToken);
+
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
+
         localStorage.removeItem("access");
         localStorage.removeItem("refresh");
+
         window.location.href = "/login";
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

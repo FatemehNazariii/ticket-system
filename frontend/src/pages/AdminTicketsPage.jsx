@@ -290,9 +290,14 @@ export default function AdminTicketsPage() {
   />
 </div>
 
-          <button className="btn btn-primary" type="submit">
-            جستجو
-          </button>
+          <button
+  className="btn btn-primary"
+  type="submit"
+  style={{ marginTop: '10px' }}
+>
+جستجو
+</button>
+
         </form>
       </div>
 
@@ -331,25 +336,27 @@ export default function AdminTicketsPage() {
             </select>
           </div>
 
-          <button
-            className="btn btn-primary"
-            type="button"
-            onClick={handleBulkUpdate}
-            disabled={bulkLoading || selectedTickets.length === 0}
-          >
-            {bulkLoading
-              ? 'در حال انجام...'
-              : `اعمال روی ${selectedTickets.length} تیکت`}
-          </button>
+<button
+  className="btn btn-primary"
+  type="button"
+  onClick={handleBulkUpdate}
+  disabled={bulkLoading || selectedTickets.length === 0}
+  style={{ marginTop: '10px' }}
+>
+  {bulkLoading
+    ? 'در حال انجام...'
+    : `اعمال روی ${selectedTickets.length} تیکت`}
+</button>
 
-          <button
-            className="btn btn-outline"
-            type="button"
-            onClick={() => setSelectedTickets([])}
-            disabled={selectedTickets.length === 0}
-          >
-            لغو انتخاب
-          </button>
+<button
+  className="btn btn-outline"
+  type="button"
+  onClick={() => setSelectedTickets([])}
+  disabled={selectedTickets.length === 0}
+  style={{ marginTop: '10px' }}
+>
+  لغو انتخاب
+</button>
         </div>
       </div>
 
